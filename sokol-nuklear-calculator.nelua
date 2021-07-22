@@ -99,7 +99,8 @@ local function frame()
   calculator(nkctx)
 
   -- draw background
-  local pass_action = sg_pass_action{colors={{action=SG_ACTION_CLEAR, value={0.0, 0.0, 0.0, 1.0}}}}
+  local pass_action: sg_pass_action
+  pass_action.colors[0] = {action=SG_ACTION_CLEAR, value={0.0, 0.0, 0.0, 1.0}}
   sg_begin_default_pass(&pass_action, sapp_width(), sapp_height())
   snk_render(sapp_width(), sapp_height());
   sg_end_pass()
