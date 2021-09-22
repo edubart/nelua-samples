@@ -1,0 +1,321 @@
+require 'microui'
+require 'hashmap'
+require 'nene.core'
+require 'nene.colors'
+require 'nene.math'
+require 'nene.font'
+require 'nene.text_texture'
+
+local mu: mu_Context
+local nene: Nene
+local default_font: Font
+local textmap: hashmap(string, TextTexture)
+local bg: [3]float32 = { 90, 95, 100 }
+local logbuf: stringbuilder
+local logbuf_updated = false
+local submitbuf: [128]cchar
+
+-- Write log.
+local function write_log(text: string)
+  if #logbuf > 0 then
+    logbuf:write('\n')
+  end
+  logbuf:write(text)
+  logbuf_updated = true
+end
+
+-- Test window.
+local function test_window()
+  -- do window
+  if mu_begin_window_ex(mu, "Demo Window", mu_rect(40, 40, 300, 450), 0) ~= 0 then
+    local win: *mu_Container = mu_get_current_container(mu)
+    win.rect.w = math.max(win.rect.w, 240)
+    win.rect.h = math.max(win.rect.h, 300)
+
+    -- window info
+    if mu_header_ex(mu, "Window Info", 0) ~= 0 then
+      local win: *mu_Container = mu_get_current_container(mu)
+      local buf: [64]cchar
+      local widths: []cint = {54, -1}
+      mu_layout_row(mu, 2, &widths[0], 0)
+      mu_label(mu,"Position:")
+      local spos: string <close> = string.format("%d, %d", win.rect.x, win.rect.y)
+      mu_label(mu, spos)
+      mu_label(mu, "Size:")
+      local ssize: string <close> = string.format("%d, %d", win.rect.x, win.rect.y)
+      mu_label(mu, ssize)
+    end
+
+    -- labels + buttons
+    if mu_header_ex(mu, "Test Buttons", MU_OPT_EXPANDED) ~= 0 then
+      local widths: []cint = {86, -110, -1}
+      mu_layout_row(mu, 3, &widths[0], 0)
+      mu_label(mu, "Test buttons 1:")
+      if mu_button(mu, "Button 1") ~= 0 then write_log("Pressed button 1") end
+      if mu_button(mu, "Button 2") ~= 0 then write_log("Pressed button 2") end
+      mu_label(mu, "Test buttons 2:")
+      if mu_button(mu, "Button 3") ~= 0 then write_log("Pressed button 3") end
+      if mu_button(mu, "Popup") ~= 0 then mu_open_popup(mu, "Test Popup") end
+      if mu_begin_popup(mu, "Test Popup") ~= 0 then
+        mu_button(mu, "Hello")
+        mu_button(mu, "World")
+        mu_end_popup(mu)
+      end
+    end
+
+    -- tree
+    if mu_header_ex(mu, "Tree and Text", MU_OPT_EXPANDED) ~= 0 then
+      local widths: []cint = {140, -1}
+      mu_layout_row(mu, 2, &widths[0], 0)
+      mu_layout_begin_column(mu)
+      if mu_begin_treenode(mu, "Test 1") ~= 0 then
+        if mu_begin_treenode(mu, "Test 1a") ~= 0 then
+          mu_label(mu, "Hello")
+          mu_label(mu, "world")
+          mu_end_treenode(mu)
+        end
+        if mu_begin_treenode(mu, "Test 1b") ~= 0 then
+          if mu_button(mu, "Button 1") ~= 0 then write_log("Pressed button 1") end
+          if mu_button(mu, "Button 2") ~= 0 then write_log("Pressed button 2") end
+          mu_end_treenode(mu)
+        end
+        mu_end_treenode(mu)
+      end
+      if mu_begin_treenode(mu, "Test 2") ~= 0 then
+        local widths: []cint = {140, -1}
+        mu_layout_row(mu, 2, &widths[0], 0)
+        if mu_button(mu, "Button 3") ~= 0 then write_log("Pressed button 3") end
+        if mu_button(mu, "Button 4") ~= 0 then write_log("Pressed button 4") end
+        if mu_button(mu, "Button 5") ~= 0 then write_log("Pressed button 5") end
+        if mu_button(mu, "Button 6") ~= 0 then write_log("Pressed button 6") end
+        mu_end_treenode(mu)
+      end
+      if mu_begin_treenode(mu, "Test 3") ~= 0 then
+        local checks: []cint = {1, 0, 1}
+        mu_checkbox(mu, "Checkbox 1", &checks[0])
+        mu_checkbox(mu, "Checkbox 2", &checks[1])
+        mu_checkbox(mu, "Checkbox 3", &checks[2])
+        mu_end_treenode(mu)
+      end
+      mu_layout_end_column(mu)
+      mu_layout_begin_column(mu)
+      local widths: []cint = {-1}
+      mu_layout_row(mu, 1, &widths[0], 0)
+      mu_text(mu, "Lorem ipsum dolor sit amet, consectetur adipiscing \z
+        elit. Maecenas lacinia, sem eu lacinia molestie, mi risus faucibus \z
+        ipsum, eu varius magna felis a nulla.")
+      mu_layout_end_column(mu)
+    end
+
+    -- background color sliders
+    if mu_header_ex(mu, "Background Color", MU_OPT_EXPANDED) ~= 0 then
+      local widths: []cint = {-78, -1}
+      mu_layout_row(mu, 2, &widths[0], 74)
+      -- sliders
+      mu_layout_begin_column(mu)
+      local widths: []cint = {46, -1}
+      mu_layout_row(mu, 2, &widths[0], 0)
+      mu_label(mu, "Red:")   mu_slider(mu, &bg[0], 0, 255)
+      mu_label(mu, "Green:") mu_slider(mu, &bg[1], 0, 255)
+      mu_label(mu, "Blue:")  mu_slider(mu, &bg[2], 0, 255)
+      mu_layout_end_column(mu)
+      -- color preview
+      local r: mu_Rect = mu_layout_next(mu)
+      mu_draw_rect(mu, r, mu_color((@byte)(bg[0]), (@byte)(bg[1]), (@byte)(bg[2]), 255))
+      local s: string <close> = string.format("#%02X%02X%02X", (@byte)(bg[0]), (@byte)(bg[1]), (@byte)(bg[2]))
+      mu_draw_control_text(mu, s, r, MU_COLOR_TEXT, MU_OPT_ALIGNCENTER)
+    end
+
+    mu_end_window(mu)
+  end
+end
+
+-- Log window.
+local function log_window()
+  if mu_begin_window(mu, "Log Window", mu_rect(350, 40, 300, 200)) then
+    -- output text panel
+    local widths: []cint = {-1}
+    mu_layout_row(mu, 1, &widths[0], -25)
+    mu_begin_panel(mu, "Log Output")
+    local panel: *mu_Container = mu_get_current_container(mu)
+    mu_layout_row(mu, 1, &widths[0], -1)
+    mu_text(mu, logbuf:view())
+    mu_end_panel(mu)
+    if logbuf_updated then
+      panel.scroll.y = panel.content_size.y
+      logbuf_updated = false
+    end
+
+    -- input textbox + submit button
+    local submitted = false
+    local widths: []cint = {-70, -1}
+    mu_layout_row(mu, 2, &widths[0], 0)
+    if (mu_textbox(mu, &submitbuf, #submitbuf) & MU_RES_SUBMIT) ~= 0 then
+      mu_set_focus(mu, mu.last_id)
+      submitted = true
+      print 'submit'
+    end
+    if mu_button(mu, "Submit") ~= 0 then submitted = true end
+    if submitted then
+      write_log(&submitbuf)
+      submitbuf[0] = 0
+    end
+    mu_end_window(mu)
+  end
+end
+
+-- Create the window and load data.
+local function setup()
+  -- initialize Nene
+  local ok: boolean
+  ok, nene = Nene.init('nene rects', 768, 512)
+  assert(ok, 'error: nene initialization failed')
+
+  -- initialize microui
+  mu_init(&mu)
+  mu.text_width = function(font: mu_Font, text: cstring, len: cint): cint
+    if len == 0 then return 0 end
+    local w: cint, h: cint
+    local s: string <close> = string.sub(text,1,len)
+    TTF_SizeText(default_font._data, s, &w, &h)
+    return w
+  end
+  mu.text_height = function(font: mu_Font): cint
+    return TTF_FontHeight(default_font._data)
+  end
+
+  -- load default font
+  default_font, ok = Font.load('data/verabd.ttf', 11)
+  assert(ok, 'error: failed to load default font')
+end
+
+-- Do cleanup before exiting.
+local function shutdown()
+  default_font:destroy()
+  -- terminate nene
+  nene:terminate()
+end
+
+--[[
+Retrieve a texture for a given text.
+A hashmap is used to cache all textures.
+]]
+local function get_text_texture(font: mu_Font, text: string)
+  local texture: TextTexture
+  if textmap:peek(text) then -- already cached
+    texture = textmap[text]
+  else
+    texture = TextTexture.new(nene, text, default_font)
+    textmap[text] = texture
+  end
+  return texture
+end
+
+-- Dispatch all queued UI draw commands.
+local function dispatch_mu_draw()
+  local cmd: *mu_Command
+  while mu_next_command(mu, &cmd) ~= 0 do
+    switch cmd.type do
+    case MU_COMMAND_TEXT then
+      local text: string = &cmd.text.str[0]
+      if #text > 0 then
+        local pos: Math.Vec2 = {x=cmd.text.pos.x, y=cmd.text.pos.y}
+        local texture: TextTexture = get_text_texture(cmd.text.font, text)
+        local color: Color = {r=cmd.text.color.r, g=cmd.text.color.g, b=cmd.text.color.b, a=cmd.text.color.a}
+        texture:draw(nene, pos, color)
+      end
+    case MU_COMMAND_RECT then
+      local rect: Math.Rect = {
+        x=cmd.rect.rect.x,
+        y=cmd.rect.rect.y,
+        w=cmd.rect.rect.w,
+        h=cmd.rect.rect.h,
+      }
+      local color: Color = {r=cmd.rect.color.r, g=cmd.rect.color.g, b=cmd.rect.color.b, a=cmd.rect.color.a}
+      nene:render_draw_rect(rect, false, color)
+    case MU_COMMAND_ICON then
+      -- r_draw_icon(cmd->icon.id, cmd->icon.rect, cmd->icon.color); break;
+    case MU_COMMAND_CLIP then
+      local rect: SDL_Rect = {
+        x=cmd.clip.rect.x,
+        y=cmd.clip.rect.y,
+        w=cmd.clip.rect.w,
+        h=cmd.clip.rect.h
+      }
+      SDL_RenderSetClipRect(nene.renderer, &rect)
+    end
+  end
+end
+
+-- Draw everything.
+local function draw()
+  nene:render_clear(Color.Palette.black)
+  mu_begin(mu)
+  test_window()
+  log_window()
+  mu_end(mu)
+  dispatch_mu_draw()
+end
+
+-- Called each frame.
+local function frame()
+  -- Handle input events.
+  nene:poll_events{
+    motion_cb = function(motion: SDL_MouseMotionEvent)
+      mu_input_mousemove(mu, motion.x, motion.y)
+    end,
+    wheel_cb = function(wheel: SDL_MouseWheelEvent)
+      mu_input_scroll(mu, 0, wheel.y * -30)
+    end,
+    text_cb = function(text: SDL_TextInputEvent)
+      mu_input_text(mu, &text.text)
+    end,
+    button_cb = function(button: SDL_MouseButtonEvent)
+      local mubtn = 0
+      switch button.button
+        case SDL_BUTTON_LEFT   then mubtn = MU_MOUSE_LEFT
+        case SDL_BUTTON_RIGHT  then mubtn = MU_MOUSE_RIGHT
+        case SDL_BUTTON_MIDDLE then mubtn = MU_MOUSE_MIDDLE
+      end
+      if mubtn > 0 then
+        if button.type == SDL_MOUSEBUTTONDOWN then
+          mu_input_mousedown(mu, button.x, button.y, mubtn)
+        elseif button.type == SDL_MOUSEBUTTONUP then
+          mu_input_mouseup(mu, button.x, button.y, mubtn)
+        end
+      end
+    end,
+    key_cb = function(key: SDL_KeyboardEvent)
+      local mukey = 0
+      switch key.keysym.sym
+        case SDLK_LSHIFT    then mukey = MU_KEY_SHIFT
+        case SDLK_RSHIFT    then mukey = MU_KEY_SHIFT
+        case SDLK_LCTRL     then mukey = MU_KEY_CTRL
+        case SDLK_RCTRL     then mukey = MU_KEY_CTRL
+        case SDLK_LALT      then mukey = MU_KEY_ALT
+        case SDLK_RALT      then mukey = MU_KEY_ALT
+        case SDLK_RETURN    then mukey = MU_KEY_RETURN
+        case SDLK_BACKSPACE then mukey = MU_KEY_BACKSPACE
+      end
+      if mukey > 0 then
+        if key.type == SDL_KEYDOWN then
+          mu_input_keydown(mu, mukey)
+        else
+          mu_input_keyup(mu, mukey)
+        end
+      end
+    end,
+  }
+  draw()
+  nene:render_present()
+end
+
+-- Run loop.
+local function run()
+  setup()
+  repeat
+    frame()
+  until nene.quit
+end
+
+run()
