@@ -35,9 +35,7 @@ local function test_window()
     -- window info
     if mu_header_ex(mu, "Window Info", 0) ~= 0 then
       local win: *mu_Container = mu_get_current_container(mu)
-      local buf: [64]cchar
-      local widths: []cint = {54, -1}
-      mu_layout_row(mu, 2, &widths[0], 0)
+      mu_layout_row(mu, 2, &(@[]cint){54, -1}, 0)
       mu_label(mu,"Position:")
       local spos: string <close> = string.format("%d, %d", win.rect.x, win.rect.y)
       mu_label(mu, spos)
@@ -48,8 +46,7 @@ local function test_window()
 
     -- labels + buttons
     if mu_header_ex(mu, "Test Buttons", MU_OPT_EXPANDED) ~= 0 then
-      local widths: []cint = {86, -110, -1}
-      mu_layout_row(mu, 3, &widths[0], 0)
+      mu_layout_row(mu, 3, &(@[]cint){86, -110, -1}, 0)
       mu_label(mu, "Test buttons 1:")
       if mu_button(mu, "Button 1") ~= 0 then write_log("Pressed button 1") end
       if mu_button(mu, "Button 2") ~= 0 then write_log("Pressed button 2") end
@@ -65,8 +62,7 @@ local function test_window()
 
     -- tree
     if mu_header_ex(mu, "Tree and Text", MU_OPT_EXPANDED) ~= 0 then
-      local widths: []cint = {140, -1}
-      mu_layout_row(mu, 2, &widths[0], 0)
+      mu_layout_row(mu, 2, &(@[]cint){140, -1}, 0)
       mu_layout_begin_column(mu)
       if mu_begin_treenode(mu, "Test 1") ~= 0 then
         if mu_begin_treenode(mu, "Test 1a") ~= 0 then
@@ -82,8 +78,7 @@ local function test_window()
         mu_end_treenode(mu)
       end
       if mu_begin_treenode(mu, "Test 2") ~= 0 then
-        local widths: []cint = {140, -1}
-        mu_layout_row(mu, 2, &widths[0], 0)
+        mu_layout_row(mu, 2, &(@[]cint){140, -1}, 0)
         if mu_button(mu, "Button 3") ~= 0 then write_log("Pressed button 3") end
         if mu_button(mu, "Button 4") ~= 0 then write_log("Pressed button 4") end
         if mu_button(mu, "Button 5") ~= 0 then write_log("Pressed button 5") end
@@ -99,8 +94,7 @@ local function test_window()
       end
       mu_layout_end_column(mu)
       mu_layout_begin_column(mu)
-      local widths: []cint = {-1}
-      mu_layout_row(mu, 1, &widths[0], 0)
+      mu_layout_row(mu, 1, &(@[]cint){-1}, 0)
       mu_text(mu, "Lorem ipsum dolor sit amet, consectetur adipiscing \z
         elit. Maecenas lacinia, sem eu lacinia molestie, mi risus faucibus \z
         ipsum, eu varius magna felis a nulla.")
@@ -109,12 +103,10 @@ local function test_window()
 
     -- background color sliders
     if mu_header_ex(mu, "Background Color", MU_OPT_EXPANDED) ~= 0 then
-      local widths: []cint = {-78, -1}
-      mu_layout_row(mu, 2, &widths[0], 74)
+      mu_layout_row(mu, 2, &(@[]cint){-78, -1}, 74)
       -- sliders
       mu_layout_begin_column(mu)
-      local widths: []cint = {46, -1}
-      mu_layout_row(mu, 2, &widths[0], 0)
+      mu_layout_row(mu, 2, &(@[]cint){46, -1}, 0)
       mu_label(mu, "Red:")   mu_slider(mu, &bg[0], 0, 255)
       mu_label(mu, "Green:") mu_slider(mu, &bg[1], 0, 255)
       mu_label(mu, "Blue:")  mu_slider(mu, &bg[2], 0, 255)
@@ -134,11 +126,10 @@ end
 local function log_window()
   if mu_begin_window(mu, "Log Window", mu_rect(350, 40, 300, 200)) then
     -- output text panel
-    local widths: []cint = {-1}
-    mu_layout_row(mu, 1, &widths[0], -25)
+    mu_layout_row(mu, 1, &(@[]cint){-1}, -25)
     mu_begin_panel(mu, "Log Output")
     local panel: *mu_Container = mu_get_current_container(mu)
-    mu_layout_row(mu, 1, &widths[0], -1)
+    mu_layout_row(mu, 1, &(@[]cint){-1}, -1)
     mu_text(mu, logbuf:view())
     mu_end_panel(mu)
     if logbuf_updated then
@@ -148,9 +139,8 @@ local function log_window()
 
     -- input textbox + submit button
     local submitted = false
-    local widths: []cint = {-70, -1}
-    mu_layout_row(mu, 2, &widths[0], 0)
-    if (mu_textbox(mu, &submitbuf, #submitbuf) & MU_RES_SUBMIT) ~= 0 then
+    mu_layout_row(mu, 2, &(@[]cint){-70, -1}, 0)
+    if mu_textbox(mu, &submitbuf, #submitbuf) & MU_RES_SUBMIT ~= 0 then
       mu_set_focus(mu, mu.last_id)
       submitted = true
       print 'submit'
@@ -249,7 +239,7 @@ end
 
 -- Draw everything.
 local function draw()
-  nene:render_clear(Color.Palette.black)
+  nene:render_clear(Color{(@byte)(bg[0]), (@byte)(bg[1]), (@byte)(bg[2]), 255})
   mu_begin(mu)
   test_window()
   log_window()
@@ -316,6 +306,7 @@ local function run()
   repeat
     frame()
   until nene.quit
+  shutdown()
 end
 
 run()
