@@ -1,13 +1,14 @@
 require 'microui'
 require 'hashmap'
-require 'nene.core'
-require 'nene.colors'
-require 'nene.math'
-require 'nene.font'
-require 'nene.text_texture'
+local Nene = require 'nene'
+local Color = require 'nene.color'
+local Vec2 = require 'nene.math.vec2'
+local Rect = require 'nene.math.rect'
+local Font = require 'nene.font'
+local TextTexture = require 'nene.text_texture'
 
 local mu: mu_Context
-local nene: Nene
+local nene: *Nene
 local default_font: Font
 local textmap: hashmap(string, TextTexture)
 local bg: [3]float32 = { 90, 95, 100 }
@@ -165,17 +166,17 @@ local function setup()
   mu_init(&mu)
   mu.text_width = function(font: mu_Font, text: cstring, len: cint): cint
     if len == 0 then return 0 end
-    local w: cint, h: cint
     local s: string <close> = string.sub(text,1,len)
-    TTF_SizeText(default_font._data, s, &w, &h)
+    local ok, w: cint, h: cint = default_font:get_text_dimensions(s)
+    check(ok, 'error: failed to get text width')
     return w
   end
   mu.text_height = function(font: mu_Font): cint
-    return TTF_FontHeight(default_font._data)
+    return default_font:get_height()
   end
 
   -- load default font
-  default_font, ok = Font.load('data/verabd.ttf', 11)
+  ok, default_font = Font.load('data/verabd.ttf', 11)
   assert(ok, 'error: failed to load default font')
 end
 
@@ -195,7 +196,7 @@ local function get_text_texture(font: mu_Font, text: string)
   if textmap:peek(text) then -- already cached
     texture = textmap[text]
   else
-    texture = TextTexture.new(nene, text, default_font)
+    texture = TextTexture.init(text, default_font, nil, 'blended')
     textmap[text] = texture
   end
   return texture
@@ -209,13 +210,13 @@ local function dispatch_mu_draw()
     case MU_COMMAND_TEXT then
       local text: string = &cmd.text.str[0]
       if #text > 0 then
-        local pos: Math.Vec2 = {x=cmd.text.pos.x, y=cmd.text.pos.y}
+        local pos: Vec2 = {x=cmd.text.pos.x, y=cmd.text.pos.y}
         local texture: TextTexture = get_text_texture(cmd.text.font, text)
         local color: Color = {r=cmd.text.color.r, g=cmd.text.color.g, b=cmd.text.color.b, a=cmd.text.color.a}
-        texture:draw(nene, pos, color)
+        texture:draw(pos, color)
       end
     case MU_COMMAND_RECT then
-      local rect: Math.Rect = {
+      local rect: Rect = {
         x=cmd.rect.rect.x,
         y=cmd.rect.rect.y,
         w=cmd.rect.rect.w,
@@ -226,13 +227,13 @@ local function dispatch_mu_draw()
     case MU_COMMAND_ICON then
       -- r_draw_icon(cmd->icon.id, cmd->icon.rect, cmd->icon.color); break;
     case MU_COMMAND_CLIP then
-      local rect: SDL_Rect = {
+      local rect: Rect = {
         x=cmd.clip.rect.x,
         y=cmd.clip.rect.y,
         w=cmd.clip.rect.w,
         h=cmd.clip.rect.h
       }
-      SDL_RenderSetClipRect(nene.renderer, &rect)
+      nene:set_render_clip(rect)
     end
   end
 end
